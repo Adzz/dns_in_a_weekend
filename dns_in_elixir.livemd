@@ -1,0 +1,81 @@
+# DNS in Elixir
+
+## Part 1: Build a DNS query
+
+```elixir
+defmodule DNSHeader do
+  defstruct [:id, :flags, :questions, :answers, :authorities, :additionals]
+
+  def to_bytes(%__MODULE__{} = header) do
+    <<header.id::big-size(16), header.flags::big-size(16), header.questions::big-size(16),
+      header.answers::big-size(16), header.authorities::big-size(16),
+      header.additionals::big-size(16)>>
+  end
+end
+
+defmodule DNSQuestion do
+  defstruct [:name, :type, :class]
+
+  def to_bytes(%__MODULE__{} = question) do
+    question.name <> <<question.type::big-size(16), question.class::big-size(16)>>
+  end
+
+  def encode_dns_name(domain_name) do
+    binary =
+      domain_name
+      |> String.split(".")
+      |> Enum.reduce(<<>>, fn part, binary ->
+        binary <> <<String.length(part)>> <> part
+      end)
+
+    binary <> <<0b00>>
+  end
+end
+```
+
+```elixir
+DNSQuestion.encode_dns_name("google.com")
+```
+
+## 1.3 Build The Query
+
+```elixir
+defmodule DNS do
+  import Bitwise
+
+  def query(domain_name, record_type) do
+    recursion? = 1 <<< 8
+
+    header = %DNSHeader{
+      # max unsigned int size
+      id: :rand.uniform(65535),
+      flags: recursion?,
+      questions: 1,
+      answers: 0,
+      authorities: 0,
+      additionals: 0
+    }
+
+    question = %DNSQuestion{
+      name: DNSQuestion.encode_dns_name(domain_name),
+      type: record_type,
+      class: 1
+    }
+
+    DNSHeader.to_bytes(header) <> DNSQuestion.to_bytes(question)
+  end
+end
+```
+
+```elixir
+DNS.query("example.com", 1)
+```
+
+## Does It Work?
+
+```elixir
+query = DNS.query("example.com", 1)
+{:ok, socket} = :gen_tcp.connect("8.8.8.8", 53, [:binary])
+
+# :gen_tcp.send(socket, query)
+```
