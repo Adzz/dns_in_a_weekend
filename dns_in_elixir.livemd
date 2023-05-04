@@ -2,6 +2,8 @@
 
 ## Part 1: Build a DNS query
 
+Following [this wonderful](https://implement-dns-preview.jvns.ca/book/tinydns_part_1.html) blog post.
+
 ```elixir
 defmodule DNSHeader do
   defstruct [:id, :flags, :questions, :answers, :authorities, :additionals]
@@ -25,7 +27,7 @@ defmodule DNSQuestion do
       domain_name
       |> String.split(".")
       |> Enum.reduce(<<>>, fn part, binary ->
-        binary <> <<String.length(part)>> <> part
+        binary <> <<byte_size(part)>> <> part
       end)
 
     binary <> <<0b00>>
@@ -34,7 +36,7 @@ end
 ```
 
 ```elixir
-DNSQuestion.encode_dns_name("google.com")
+# DNSQuestion.encode_dns_name("google.com")
 ```
 
 ## 1.3 Build The Query
@@ -75,7 +77,7 @@ DNS.query("example.com", 1)
 
 ```elixir
 query = DNS.query("example.com", 1)
-{:ok, socket} = :gen_tcp.connect("8.8.8.8", 53, [:binary])
-
-# :gen_tcp.send(socket, query)
+{:ok, socket} = :gen_tcp.connect({8, 8, 8, 8}, 53, [:binary])
+:gen_tcp.send(socket, query)
+:gen_tcp.recv(socket, 0)
 ```
